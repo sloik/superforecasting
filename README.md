@@ -1,11 +1,13 @@
 # Superforecasting — a cross-harness forecasting playbook + toolkit
 
+[![tests](https://github.com/sloik/superforecasting/actions/workflows/tests.yml/badge.svg)](https://github.com/sloik/superforecasting/actions/workflows/tests.yml)
+
 > Ask any agent "how likely is X?" and get a calibrated, tool-verified, Brier-scored answer —
 > from one Markdown playbook and six dependency-free Python scripts.
 
 An "automated" way to answer forecasting and consequential-decision questions the way
 Philip Tetlock's **superforecasters** do. It is a **skill** (a Markdown playbook + a set of
-stdlib-only Python tools) designed to run identically across Claude, Codex, Hermes, Aider,
+stdlib-only Python tools) designed to run identically across Claude, Codex, Aider,
 or any agent that can read Markdown and shell out to `python3`.
 
 Built for a Good Judgment-style project: discussion-driven reasoning, tool-verified claims,
@@ -46,6 +48,31 @@ Your calibration ledger is **not** stored in this folder — see
 
 See `SKILL.md` for the full pipeline and `references/workflow.md` for the paste-in checklist.
 
+## Install
+
+There is nothing to build and nothing to install — clone it and it works.
+
+```bash
+git clone https://github.com/sloik/superforecasting.git
+cd superforecasting
+python3 -m unittest discover -s tests     # optional sanity check; stdlib only
+```
+
+**Claude (Claude Code / Cowork)** — symlink the checkout into your skills directory so it is
+auto-discovered:
+
+```bash
+mkdir -p ~/.claude/skills
+ln -s "$PWD" ~/.claude/skills/superforecasting
+```
+
+**Any other agent (Codex, Aider, …)** — point it at `SKILL.md` and let it call the scripts;
+they are plain CLIs with `--help`:
+
+```bash
+python3 scripts/baserate.py --hits 3 --total 11
+```
+
 ## Quick start
 
 ```bash
@@ -70,6 +97,8 @@ python3 aggregate.py --p 0.6 --date 2026-07-01 --p 0.7 --date 2026-07-12 --half-
 # Log a forecast, update it when a trigger fires, then (later) resolve and score it
 python3 forecastlog.py add --question "Will X ship by 2026-12-31?" --prob 0.35 --resolve-by 2026-12-31 --tags product --baseline-prob 0.30
 python3 forecastlog.py update --id 1 --prob 0.45 --note "positive earnings surprise"
+# If the question is withdrawn/invalid, retire it without changing its probability or scoring it
+python3 forecastlog.py supersede --id 1 --reason "question withdrawn" --replaced-by 3
 python3 forecastlog.py list --overdue
 python3 forecastlog.py list --due 14
 python3 forecastlog.py resolve --id 1 --outcome 0
@@ -111,7 +140,7 @@ The playbook is plain Markdown and the tools are plain CLIs, so portability is j
   `name`/`description` frontmatter. Symlink or copy it into your skills directory
   (e.g. `~/.claude/skills/superforecasting`) to have it auto-discovered, or just open the
   project and reference `SKILL.md`.
-- **Codex / Aider / Hermes / other agents:** these read a project context file. `AGENTS.md`
+- **Codex / Aider / other agents:** these read a project context file. `AGENTS.md`
   (included) points them at `SKILL.md` and the tools. Add the repo to the agent's context, or
   paste `SKILL.md` into the system prompt. The scripts run the same everywhere.
 - **Ensemble across all of them:** fill `templates/question-packet.md`, give the identical
@@ -125,9 +154,10 @@ The playbook is plain Markdown and the tools are plain CLIs, so portability is j
   `SKILL.md`, because those are the habits the research shows actually move accuracy.
 - **Geometric mean of odds** as the default pool (external Bayesianity), with extremizing
   available but off by default (it hurts on correlated/small panels).
-- **Append-only forecast ledger**: new forecasts, belief updates, and resolutions are JSONL
-  events; readers fold them into current snapshots for listing/scoring (updates preserve the
-  full `prob_history` trajectory and score on the latest probability).
+- **Append-only forecast ledger**: new forecasts, belief updates, resolutions, and supersessions
+  are JSONL events; readers fold them into current snapshots for listing/scoring. Updates preserve
+  the full `prob_history` trajectory and resolve on the latest probability. Supersessions preserve
+  that trajectory but are excluded from Brier/RPS scoring; do not move probability for bookkeeping.
 - **Ordered numeric distributions**: distributions over declared bins use Ranked Probability
   Score (RPS), which rewards near misses, and are reported separately from binary Brier.
 - **Rationale quality matters**: the final prose is checked for markers such as statistical
@@ -140,6 +170,10 @@ decomposition. Full links in the `references/` files.
 
 `references/ten-commandments.md` is a **paraphrased summary with commentary**, not the book's
 text. Read the book for the original.
+
+## Contributing / local setup
+If you clone this repo to work on it, run `tools/install-hooks.sh` **before your first commit** —
+git does not clone `.git/hooks`, so a fresh checkout has no commit guard until you install it.
 
 ## License
 MIT — see [LICENSE](LICENSE).

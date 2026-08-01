@@ -1,7 +1,7 @@
 # Question Packet — <short title>
 
 > Portable, harness-agnostic. Fill this out once, then hand the SAME packet to several
-> agents (Claude, Codex, Hermes, Aider) or people. Collect each filled-in copy and pool
+> agents (Claude, Codex, Aider) or people. Collect each filled-in copy and pool
 > the probabilities with `scripts/aggregate.py`. Independent inputs are the point — don't
 > let responders see each other's answers first.
 

@@ -99,7 +99,8 @@ def load_rows(args) -> list[dict]:
             raise ValueError(f"invalid --pairs token {tok!r}: {exc}") from exc
     if args.log:
         for rec in fold_forecast_log(args.log):
-            if rec.get("outcome") is None or rec.get("prob") is None:
+            if (rec.get("status") != "resolved" or rec.get("outcome") is None
+                    or rec.get("prob") is None):
                 continue  # unresolved
             row = dict(rec)
             row["prob"] = validate_probability(float(row["prob"]), "prob")
@@ -113,7 +114,8 @@ def load_distribution_rows(log_path: str | None) -> list[dict]:
     if not log_path:
         return []
     return [rec for rec in fold_forecast_log(log_path)
-            if rec.get("dist") is not None and rec.get("rps") is not None]
+            if rec.get("status") == "resolved"
+            and rec.get("dist") is not None and rec.get("rps") is not None]
 
 
 def baseline_pairs(rows: list[dict], args) -> tuple[str, list[tuple[float, int]]]:

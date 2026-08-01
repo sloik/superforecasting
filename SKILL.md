@@ -6,7 +6,8 @@ description: >-
   Runs Tetlock's superforecaster pipeline: triage, Fermi-ize, outside view
   (base rates), inside view, weigh clashing forces, quantify a fine-grained
   probability, verify every claim with tools/web, then log and Brier-score it
-  for calibration. Portable across Claude, Codex, Hermes, Aider.
+  for calibration. Portable across Claude, Codex, Aider, or any agent that
+  reads Markdown and runs python3.
 version: 1.0.0
 author: Lukasz Stocki
 license: MIT
@@ -129,7 +130,7 @@ each step. Bind the marked steps to the tools in `scripts/` and to web/data sear
      a. *Within one conversation*: argue the question from 2-3 genuinely different framings
         and reconcile them.
      b. *Across agents*: hand the **question packet** (`templates/question-packet.md`) to
-        several harnesses (Claude, Codex, Hermes, Aider) or people, collect each one's
+        several harnesses (Claude, Codex, Aider) or people, collect each one's
         probability + rationale, then pool them.
    - → Pool with **`scripts/aggregate.py`** (geometric mean of odds; optional extremizing
      when the views are diverse and independent). Inspect wide disagreement before trusting
@@ -167,6 +168,10 @@ each step. Bind the marked steps to the tools in `scripts/` and to web/data sear
      for the calibration/resolution decomposition. Study where your 70%s don't happen 70%
      of the time. Add **`--time-weighted`** to score the opt-in, duration-weighted belief
      trajectory alongside the standard latest-probability Brier.
+   - If a question is withdrawn or becomes invalid, retire it with
+     **`forecastlog.py supersede --id N --reason "..."`**, optionally naming a replacement with
+     `--replaced-by M`. Supersession preserves the probability trajectory but excludes the
+     forecast from Brier/RPS scoring; never move its probability merely for bookkeeping.
    - **Where the ledger lives:** `$FORECAST_LOG` if set, otherwise
      `~/.superforecasting/forecasts.jsonl`; `--log <path>` overrides both. It is deliberately
      outside the skill directory, so the skill works installed read-only or symlinked and one
@@ -187,6 +192,7 @@ each step. Bind the marked steps to the tools in `scripts/` and to web/data sear
 | Record a forecast + rationale               | `scripts/forecastlog.py add` |
 | Record an ordered range distribution         | `scripts/forecastlog.py add --bins ... --dist ...` |
 | Log a triggered belief update               | `scripts/forecastlog.py update --id N --prob X` |
+| Retire an invalid/withdrawn forecast         | `scripts/forecastlog.py supersede --id N --reason ...` |
 | Resolve & score, measure calibration        | `scripts/forecastlog.py resolve` + `scripts/brier.py` |
 | Score the belief trajectory (opt-in)         | `scripts/brier.py --time-weighted` |
 | Compare against baseline/crowd skill        | `scripts/brier.py --baseline-prob ...` or `--baseline-field ...` |

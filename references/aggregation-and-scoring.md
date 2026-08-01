@@ -30,7 +30,7 @@ Diverse independent forecasters each see part of the signal; the pool is systema
 - Extremizing **hurts** when forecasters are few or highly correlated (they'd be echoing each
   other, so pushing to the extreme just amplifies a shared error). Default to a = 1 and only
   extremize deliberately.
-- **All-LLM panels are correlated by default.** Claude, Codex, Hermes, etc. share large parts
+- **All-LLM panels are correlated by default.** Claude, Codex, etc. share large parts
   of their training data and priors — treat their agreement as partially one vote, and do NOT
   extremize an ensemble made only of LLM agents. Extremizing earns its keep with genuinely
   independent inputs (different people, different data sources, different methods).

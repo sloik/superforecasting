@@ -2,7 +2,7 @@
 """Aggregate several probability forecasts into one — the 'dragonfly eye' / crowd step.
 
 This is the engine for the ENSEMBLE workflow: run the same question through
-several agents (Claude, Codex, Hermes, Aider, humans...), collect each one's
+several agents (Claude, Codex, Aider, humans...), collect each one's
 probability, then pool them here.
 
 Default method is the GEOMETRIC MEAN OF ODDS, which the forecasting literature
@@ -54,6 +54,14 @@ def inv_logit(x: float) -> float:
 
 
 def geomean_of_odds(ps: list[float], weights: list[float] | None = None) -> float:
+    """Pool probabilities by the weighted geometric mean of their odds.
+
+    Endpoint contract: probabilities must be in the closed interval [0, 1] — the
+    same interval `validate_probability` accepts everywhere else in the toolkit —
+    and 0.0 / 1.0 are clipped to `_clip`'s epsilon so their odds stay finite. The
+    returned probability is therefore always strictly between 0 and 1, and no
+    input raises `ZeroDivisionError`.
+    """
     if weights is None:
         weights = [1.0] * len(ps)
     if len(weights) != len(ps):
@@ -63,19 +71,32 @@ def geomean_of_odds(ps: list[float], weights: list[float] | None = None) -> floa
         raise ValueError("sum of weights must be > 0")
     for w in weights:
         validate_positive(w, "weight")
+    for i, p in enumerate(ps, 1):
+        validate_probability(p, f"geomean_of_odds probability {i}")
     # weighted geometric mean of odds == inverse-logit of weighted mean of logits
-    s = sum(w * logit(p) for p, w in zip(ps, weights))
+    s = sum(w * logit(p) for p, w in zip(_clip(ps), weights))
     return inv_logit(s / W)
 
 
 def extremize(p: float, a: float) -> float:
+    """Sharpen a pooled probability by scaling its log-odds by `a` (a >= 1).
+
+    Same endpoint contract as `geomean_of_odds`: `p` must be in [0, 1] and the
+    endpoints are clipped, so extremizing 0.0 or 1.0 returns a value strictly
+    inside (0, 1) instead of raising `ZeroDivisionError`.
+    """
     if a < 1.0:
-        raise ValueError("extremizing exponent must be >= 1")
-    return inv_logit(a * logit(p))
+        raise ValueError(f"extremize: exponent a must be >= 1, got {a}")
+    validate_probability(p, "extremize probability")
+    return inv_logit(a * logit(_clip_one(p)))
+
+
+def _clip_one(p: float, eps: float = 1e-6) -> float:
+    return min(1 - eps, max(eps, p))
 
 
 def _clip(ps: list[float], eps: float = 1e-6) -> list[float]:
-    return [min(1 - eps, max(eps, p)) for p in ps]
+    return [_clip_one(p, eps) for p in ps]
 
 
 def track_record_weights(
@@ -208,9 +229,8 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         ap.error(str(exc))
 
-    pc = _clip(ps)
     try:
-        pooled = geomean_of_odds(pc, ws)
+        pooled = geomean_of_odds(ps, ws)
         result = extremize(pooled, args.extremize) if args.extremize != 1.0 else pooled
     except ValueError as exc:
         ap.error(str(exc))

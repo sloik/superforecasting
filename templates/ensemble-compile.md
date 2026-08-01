@@ -8,7 +8,7 @@ forecast **plus** an understanding of *why* the panel disagrees.
 |--------------------------|----------------|---------|------------|-------------------|--------------------|
 | claude                   |                |         |            |                   |                    |
 | codex                    |                |         |            |                   |                    |
-| hermes                   |                |         |            |                   |                    |
+| agent-3                  |                |         |            |                   |                    |
 | aider                    |                |         |            |                   |                    |
 | (human)                  |                |         |            |                   |                    |
 

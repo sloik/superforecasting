@@ -1,6 +1,6 @@
 # AGENTS.md — Superforecasting skill
 
-This file orients non-Claude agents (Codex, Aider, Hermes, etc.).
+This file orients non-Claude agents (Codex, Aider, etc.).
 
 **Read `SKILL.md` first.** It is the full playbook: the operating mindset, the 8-step
 forecasting pipeline, the discipline rules, and the tool map.

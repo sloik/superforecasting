@@ -187,11 +187,27 @@ def fold_forecast_log(path: str) -> list[dict[str, Any]]:
 
     for rec in read_jsonl(path):
         event = rec.get("event", "forecast")
+        if event == "supersede":
+            fid = int(rec["id"])
+            if fid not in forecasts:
+                continue
+            row = forecasts[fid]
+            if row.get("status") in {"resolved", "superseded"}:
+                continue
+            row["status"] = "superseded"
+            row["superseded"] = rec.get("superseded")
+            row["reason"] = rec.get("reason", "")
+            if rec.get("replaced_by") is not None:
+                row["replaced_by"] = int(rec["replaced_by"])
+            continue
+
         if event == "resolve":
             fid = int(rec["id"])
             if fid not in forecasts:
                 continue
             row = forecasts[fid]
+            if row.get("status") in {"resolved", "superseded"}:
+                continue
             if "dist" in row:
                 outcome_bin = rec.get("outcome_bin")
                 if outcome_bin not in row["bins"]:
@@ -212,6 +228,8 @@ def fold_forecast_log(path: str) -> list[dict[str, Any]]:
             if fid not in forecasts:
                 continue
             row = forecasts[fid]
+            if row.get("status") in {"resolved", "superseded"}:
+                continue
             new_prob = validate_probability(float(rec["prob"]), "prob")
             row["prob"] = new_prob
             hist = histories[fid]

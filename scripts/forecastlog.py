@@ -9,6 +9,7 @@ Commands
 --------
   add      register a new open forecast
   update   revise the probability of an open forecast (append-only; keeps a trajectory)
+  supersede retire an invalid/withdrawn forecast without scoring it
   resolve  set the outcome (0/1) on an existing forecast
   list     show forecasts (optionally filtered by status or due date)
   score    quick Brier over all resolved forecasts (delegates to brier logic)
@@ -22,6 +23,7 @@ Examples
       --tags product,deadlines --forecaster alice --baseline-prob 0.30
 
   python3 forecastlog.py update --id 3 --prob 0.45 --note "earnings beat"
+  python3 forecastlog.py supersede --id 3 --reason "question withdrawn" --replaced-by 4
   python3 forecastlog.py list --status open
   python3 forecastlog.py list --overdue
   python3 forecastlog.py list --due 14 --as-of 2026-08-01
@@ -157,6 +159,10 @@ def cmd_resolve(args) -> int:
             if r["status"] == "resolved":
                 print(f"forecast #{args.id} is already resolved", file=sys.stderr)
                 return 1
+            if r["status"] == "superseded":
+                print(f"cannot resolve superseded forecast (#{args.id}): {r['reason']}",
+                      file=sys.stderr)
+                return 1
             if "dist" in r:
                 if args.outcome_bin is None:
                     raise ValueError("distribution forecasts require --outcome-bin")
@@ -206,6 +212,10 @@ def cmd_update(args) -> int:
             if r["status"] == "resolved":
                 print(f"cannot update a resolved forecast (#{args.id})", file=sys.stderr)
                 return 1
+            if r["status"] == "superseded":
+                print(f"cannot update superseded forecast (#{args.id}): {r['reason']}",
+                      file=sys.stderr)
+                return 1
             if "dist" in r:
                 print(f"distribution updates are not supported (#{args.id})", file=sys.stderr)
                 return 1
@@ -222,6 +232,34 @@ def cmd_update(args) -> int:
             append_jsonl(args.log, event)
             print(f"updated #{args.id}: p={old_prob} -> {new_prob}")
             return 0
+    print(f"no forecast with id {args.id}", file=sys.stderr)
+    return 1
+
+
+def cmd_supersede(args) -> int:
+    for row in fold_forecast_log(args.log):
+        if row["id"] != args.id:
+            continue
+        if row["status"] == "resolved":
+            print(f"cannot supersede resolved forecast (#{args.id})", file=sys.stderr)
+            return 1
+        if row["status"] == "superseded":
+            print(f"forecast #{args.id} is already superseded: {row['reason']}", file=sys.stderr)
+            return 1
+        event = {
+            "event": "supersede",
+            "schema_version": 2,
+            "id": args.id,
+            "status": "superseded",
+            "reason": args.reason,
+            "superseded": _now(),
+        }
+        if args.replaced_by is not None:
+            event["replaced_by"] = args.replaced_by
+        append_jsonl(args.log, event)
+        replacement = f"; replaced by #{args.replaced_by}" if args.replaced_by is not None else ""
+        print(f"superseded #{args.id}: {args.reason}{replacement}")
+        return 0
     print(f"no forecast with id {args.id}", file=sys.stderr)
     return 1
 
@@ -275,8 +313,10 @@ def cmd_list(args) -> int:
 
 def cmd_score(args) -> int:
     resolved = fold_forecast_log(args.log)
-    rows = [r for r in resolved if r.get("outcome") is not None and r.get("prob") is not None]
-    distributions = [r for r in resolved if r.get("rps") is not None and r.get("dist") is not None]
+    rows = [r for r in resolved if r.get("status") == "resolved"
+            and r.get("outcome") is not None and r.get("prob") is not None]
+    distributions = [r for r in resolved if r.get("status") == "resolved"
+                     and r.get("rps") is not None and r.get("dist") is not None]
     if not rows and not distributions:
         print("no resolved forecasts yet")
         return 0
@@ -334,8 +374,15 @@ def main(argv: list[str] | None = None) -> int:
     resolve_kind.add_argument("--outcome-bin", help="declared ordered-bin label or zero-based index")
     r.set_defaults(func=cmd_resolve)
 
+    x = sub.add_parser("supersede", help="retire an invalid or withdrawn forecast without scoring")
+    x.add_argument("--id", type=int, required=True)
+    x.add_argument("--reason", required=True, help="why the forecast cannot be resolved normally")
+    x.add_argument("--replaced-by", type=int, default=None,
+                   help="optional id of the replacement forecast")
+    x.set_defaults(func=cmd_supersede)
+
     l = sub.add_parser("list", help="list forecasts")
-    l.add_argument("--status", choices=["open", "resolved"], default=None)
+    l.add_argument("--status", choices=["open", "resolved", "superseded"], default=None)
     due_filter = l.add_mutually_exclusive_group()
     due_filter.add_argument("--overdue", action="store_true", help="show open forecasts past resolve_by")
     due_filter.add_argument("--due", type=int, metavar="N", help="show open forecasts due within N days")

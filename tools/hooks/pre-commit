@@ -1,0 +1,94 @@
+#!/bin/sh
+# Commit guard for this repository.
+#
+# Local development tooling lives on disk beside the published skill: hidden
+# working directories, a `_System/` folder, a private `data/` ledger and a local
+# `TODO.md`. Those files carry absolute home paths, agent session URLs and notes
+# about unrelated work. `.gitignore` keeps them out of commits; this guard is
+# what holds when `.gitignore` is edited or bypassed with `git add -f`.
+#
+# One script, installed under two hook names, because git hands the commit
+# message to commit-msg but never to pre-commit:
+#   pre-commit  (no argv)   -> arm (a), staged paths
+#   commit-msg  ($1 = file) -> arm (b), commit message text
+#
+# Install with `tools/install-hooks.sh` — git does not clone .git/hooks, so a
+# fresh checkout has no protection until that runs.
+#
+# Deliberate override: git commit --no-verify
+
+set -u
+
+TMPSTAGED=$(mktemp -t sfguard-staged) || exit 1
+TMPHITS=$(mktemp -t sfguard-hits) || exit 1
+trap 'rm -f "$TMPSTAGED" "$TMPHITS"' EXIT
+
+# --- arm (a): staged paths -------------------------------------------------
+# Reads from a file, not a pipe, so the loop stays in this shell.
+#
+# The rule is by shape, not by name: every hidden directory is local tooling,
+# with `.github/` and the managed `.nightshift/` Kit as published exceptions.
+# Root dotfiles such as `.gitignore` have no slash and are unaffected.
+check_staged_paths() {
+	git diff --cached --name-only --diff-filter=ACMR >"$TMPSTAGED"
+	: >"$TMPHITS"
+
+	while IFS= read -r path; do
+		[ -z "$path" ] && continue
+		case "$path" in
+		.github/* | */.github/*) hit=0 ;;
+		.nightshift/* | */.nightshift/*) hit=0 ;;
+		.*/* | */.*/*) hit=1 ;;
+		_System/* | */_System/*) hit=1 ;;
+		data/* | */data/*) hit=1 ;;
+		TODO.md | */TODO.md) hit=1 ;;
+		*) hit=0 ;;
+		esac
+		if [ "$hit" -eq 1 ]; then
+			echo "  staged private path: $path" >>"$TMPHITS"
+		fi
+	done <"$TMPSTAGED"
+
+	if [ -s "$TMPHITS" ]; then
+		echo "BLOCKED: private tooling paths are staged for commit:" >&2
+		cat "$TMPHITS" >&2
+		return 1
+	fi
+	return 0
+}
+
+# --- arm (b): commit message ----------------------------------------------
+check_commit_message() {
+	msgfile="$1"
+	[ -f "$msgfile" ] || return 0
+
+	# Fixed strings, not regex: BSD grep on macOS has no -P.
+	# git's own '#' comment lines are stripped before scanning.
+	grep -v '^#' "$msgfile" |
+		grep -n -F -e 'claude.ai/code' -e '/Users/' -e 'Claude-Session:' \
+			>"$TMPHITS" 2>/dev/null
+
+	if [ -s "$TMPHITS" ]; then
+		echo "BLOCKED: private content in the commit message:" >&2
+		sed 's/^/  line /' "$TMPHITS" >&2
+		return 1
+	fi
+	return 0
+}
+
+FAILED=0
+if [ "$#" -ge 1 ]; then
+	check_commit_message "$1" || FAILED=1
+else
+	check_staged_paths || FAILED=1
+fi
+
+if [ "$FAILED" -ne 0 ]; then
+	echo "" >&2
+	echo "superforecasting guard: refusing this commit." >&2
+	echo "This repo is published; private tooling and session URLs must not enter it." >&2
+	echo "Unstage the path or rewrite the message. Override: git commit --no-verify" >&2
+	exit 1
+fi
+
+exit 0
