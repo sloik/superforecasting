@@ -177,3 +177,12 @@ git does not clone `.git/hooks`, so a fresh checkout has no commit guard until y
 
 ## License
 MIT — see [LICENSE](LICENSE).
+
+## Formal verification
+
+The forecast lifecycle has an executable TLA+ model and exhaustive Python
+conformance checks. Run `python3 -m unittest discover -s tests` for all tests;
+see [formal/README.md](formal/README.md) for the pinned TLC command, invariants,
+finite bounds, deliberate defect controls, and Oracle ARM64 CI operations.
+This verifies the modeled binary lifecycle under explicit bounds; it does not
+prove every statistical algorithm or predict forecasting accuracy.

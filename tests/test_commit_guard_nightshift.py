@@ -64,3 +64,25 @@ class CommitGuardNightshiftTests(unittest.TestCase):
 
             self.assertNotEqual(committed.returncode, 0)
             self.assertIn("private tooling paths", committed.stderr)
+
+    def test_optional_local_gate_can_refuse_without_disabling_public_guard(self) -> None:
+        with _fixture_repo() as fixture:
+            root = Path(fixture)
+            gate = root / '.nightshift/hooks/pre-commit'
+            gate.parent.mkdir(parents=True)
+            gate.write_text('#!/bin/sh\necho local-gate-refused >&2\nexit 17\n')
+            gate.chmod(0o755)
+            public = root / 'public.txt'
+            public.write_text('public fixture\n')
+            _git(root, 'add', 'public.txt').check_returncode()
+            result = _git(root, 'commit', '-m', 'exercise composed gate')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('local-gate-refused', result.stderr)
+            gate.write_text('#!/bin/sh\nexit 0\n')
+            private = root / '.argo/private.txt'
+            private.parent.mkdir()
+            private.write_text('private fixture\n')
+            _git(root, 'add', '-f', '.argo/private.txt').check_returncode()
+            result = _git(root, 'commit', '-m', 'exercise public guard')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('private tooling paths', result.stderr)

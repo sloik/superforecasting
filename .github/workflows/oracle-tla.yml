@@ -1,0 +1,24 @@
+name: Oracle TLA verification
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: oracle-tla-main
+  cancel-in-progress: true
+jobs:
+  tla:
+    if: github.repository == 'sloik/superforecasting' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, ARM64, oracle, superforecasting]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout maintained main revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Run Python tests and bounded implementation conformance
+        run: python3 -m unittest discover -s tests
+      - name: Run pinned TLC and semantic counterexamples
+        run: python3 tools/run_formal.py --java /usr/bin/java --jar /opt/tla/tla2tools-1.7.4.jar

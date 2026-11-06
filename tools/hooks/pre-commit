@@ -19,6 +19,15 @@
 
 set -u
 
+# Compose with the optional local gate while keeping this guard portable.
+# Never replace a locally installed safety check merely to match this source.
+if [ "$#" -eq 0 ]; then
+	LOCAL_GATE="$(git rev-parse --show-toplevel)/.nightshift/hooks/pre-commit"
+	if [ -x "$LOCAL_GATE" ]; then
+		"$LOCAL_GATE" || exit $?
+	fi
+fi
+
 TMPSTAGED=$(mktemp -t sfguard-staged) || exit 1
 TMPHITS=$(mktemp -t sfguard-hits) || exit 1
 trap 'rm -f "$TMPSTAGED" "$TMPHITS"' EXIT

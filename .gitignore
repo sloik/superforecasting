@@ -1,6 +1,7 @@
 # Local development tooling — present on disk, never published.
 .nightshift/
 .argo/
+.agent-context/
 .claude/
 .serena/
 _System/
