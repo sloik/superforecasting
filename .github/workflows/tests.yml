@@ -10,14 +10,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-24.04]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
         include:
-          # README declares a Python 3.8+ floor. 3.8 is not available on the
-          # ubuntu-latest image, so the floor is exercised on the last image
-          # that ships it.
+          # Older Python builds need the compatible Ubuntu 22.04 image.
+          # Keep the declared 3.8 floor and the 3.9 coverage explicit.
           - os: ubuntu-22.04
             python-version: "3.8"
+          - os: ubuntu-22.04
+            python-version: "3.9"
 
     steps:
       - uses: actions/checkout@v4

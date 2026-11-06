@@ -28,8 +28,8 @@ if [ "$#" -eq 0 ]; then
 	fi
 fi
 
-TMPSTAGED=$(mktemp -t sfguard-staged) || exit 1
-TMPHITS=$(mktemp -t sfguard-hits) || exit 1
+TMPSTAGED=$(mktemp "${TMPDIR:-/tmp}/sfguard-staged.XXXXXX") || exit 1
+TMPHITS=$(mktemp "${TMPDIR:-/tmp}/sfguard-hits.XXXXXX") || exit 1
 trap 'rm -f "$TMPSTAGED" "$TMPHITS"' EXIT
 
 # --- arm (a): staged paths -------------------------------------------------
