@@ -37,7 +37,10 @@ Superforecasting/
 │   ├── aggregate.py             pool many forecasts (geo-mean of odds + extremizing)
 │   ├── brier.py                 Brier score + calibration/resolution decomposition
 │   └── forecastlog.py           record → resolve → score forecasts (JSONL ledger)
-└── tests/                       stdlib unittest suite
+├── tests/                       stdlib unittest suite and lifecycle conformance
+├── formal/                      TLA+ lifecycle model, configurations and operations guide
+├── tools/                       hook installer, TLC campaign and Oracle admission guard
+└── .github/workflows/           hosted Python matrix and maintained-main Oracle verification
 ```
 
 Your calibration ledger is **not** stored in this folder — see
@@ -111,7 +114,9 @@ python3 forecastlog.py add --question "2027 units?" --bins "under-10,10-20,over-
 python3 forecastlog.py resolve --id 2 --outcome-bin 10-20
 ```
 
-Requirements: **Python 3.8+ only** (standard library — no pip installs).
+The forecasting toolkit and Python tests require **Python 3.8+** (standard library — no pip installs).
+Optional native TLA+ verification additionally requires **Java 17+** and the pinned TLC jar;
+see [the formal verification guide](formal/README.md) for the download and run commands.
 
 ## Where your forecasts are stored
 
