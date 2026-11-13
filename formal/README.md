@@ -65,6 +65,8 @@ root-owned under `/opt/sf-runner`, with writes confined by systemd to
 `/var/lib/sf-runner` and its diagnostic directory. It has no sudo access, one CPU
 and a 2 GiB memory cap. Existing runner services are independent.
 
+GitHub's 30-day update window is kept by the host: runner updates are applied by the host's verified updater (`swift-tla-runner-update.timer`, daily). GitHub's own auto-update stays disabled so the installation stays root-owned. The updater requires the release-notes SHA-256 and the asset digest to agree with the download, refuses a runner that no longer supports `ACTIONS_RUNNER_HOOK_JOB_STARTED`, never interrupts a running job, swaps only the runner code (registration, credentials, `.env`, hook and file modes are untouched), waits for the listener to reconnect, and restores the previous version on failure. After a real version change, run one real job before claiming compatibility. Tested on 2026-11-13 with a forced same-version swap followed by a green manual-dispatch run.
+
 The root-owned pre-job admission hook at `/etc/sf-runner/oracle_job_guard.py`
 is installed from `tools/oracle_job_guard.py`. It checks server, numeric repo
 identity, repository name, main ref, exact workflow ref and push/manual event,
