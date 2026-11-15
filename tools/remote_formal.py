@@ -133,13 +133,12 @@ def run(args, root, cases):
         finally:
             os.close(root_fd)
         command = [client, 'run', '--project', PROJECT, '--source', str(source),
-                   '--include', 'tools', '--include', 'formal', '--timeout', '900']
+                   '--include', 'tools', '--include', 'formal', '--timeout', '900',
+                   '--output', OUTPUT]
         if args.output:
-            command += ['--output', OUTPUT, '--fetch', str(fetched)]
+            command += ['--fetch', str(fetched)]
         command += ['--', '/usr/bin/python3', '-B', 'tools/run_formal.py',
-                    '--java', args.java, '--jar', str(args.jar)]
-        if args.output:
-            command += ['--output', OUTPUT]
+                    '--java', args.java, '--jar', str(args.jar), '--output', OUTPUT]
         try:
             result = subprocess.run(command, cwd=root)
         except OSError as exc:
