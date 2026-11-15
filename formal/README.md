@@ -1,19 +1,35 @@
 # Forecast lifecycle verification
 
 Run the Python suite with `python3 -m unittest discover -s tests`.
-Run the native model campaign with Java 17+ and the pinned
-[TLC 1.7.4 release](https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4):
+Run the model campaign through the shared Oracle queue:
 
 ```sh
-curl -fL https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar -o /tmp/tla2tools-1.7.4.jar
-python3 tools/run_formal.py --jar /tmp/tla2tools-1.7.4.jar
+python3 tools/run_formal.py --java /usr/bin/java --jar /opt/tla/tla2tools-1.7.4.jar
 ```
 
-The command checks SHA-256
+Install the shared `tla-queue` client on the submitting machine. Its configured
+Oracle transport is reused for local development, experiments, uncommitted inputs
+and CI; the producer never starts local TLC as a fallback. Missing client or
+backend is an explicit failure. `--jar` and `--java` name **Oracle-side** tool paths,
+so the Mac does not need a jar or JDK. No local download is required.
+
+The adapter snapshots the complete producer closure (two producer scripts, the
+model and six configurations) and submits it under `sloik/superforecasting`.
+Only a Linux queue worker running as `tla-job` with its matching job cgroup may
+execute the native loop. A marker alone cannot select that branch. The queue
+runs the original producer with the real JDK and pinned TLC1.7.4; no Java shim,
+synthetic result or weaker counterexample parser is used.
+
+The native worker checks SHA-256
 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`
-before running TLC, one worker, 512 MiB heap and a 120-second limit per case.
-Use `--output <directory>` to retain fresh native logs with case, input hashes
-and exit code. Logs are diagnostic receipts, not process attestations.
+before running TLC, one worker,512MiB heap, seed1 and a120-second limit per case.
+It prints the actual Java executable/hash/version and JAR identity. Use
+`--output <directory>` to fetch the six native logs with case, input hashes,
+exit code and observed tool identity. Only those owned log names are atomically
+replaced; unrelated files in an existing output directory remain intact.
+Symlinked output directories/logs and path escapes are refused. A failed campaign
+may retain its available diagnostic logs, but missing logs cannot qualify a
+successful complete campaign. Logs are diagnostic receipts, not process attestations.
 
 ## Contract and bounds
 
@@ -55,7 +71,10 @@ model. In particular, no locking or atomic multi-writer ID allocation is claimed
 ## Oracle CI
 
 `.github/workflows/oracle-tla.yml` runs tests and the fresh TLC campaign on the
-repository-specific `oracle-superforecasting` ARM64 runner. Only maintained
+repository-specific `oracle-superforecasting` ARM64 runner. The existing workflow
+command now submits the complete native campaign to the shared Oracle queue; the
+runner itself does not launch TLC. Queue admission must map its dedicated Unix
+principal to `sloik/superforecasting`, distinct from development submissions. Only maintained
 `main` pushes and manual dispatches on `main` are eligible. Pull request tests
 continue on GitHub-hosted machines.
 

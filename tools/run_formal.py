@@ -2,6 +2,7 @@
 """Run pinned, bounded TLC checks and required semantic counterexamples."""
 import argparse
 import hashlib
+import json
 import re
 import shutil
 import subprocess
@@ -34,12 +35,27 @@ def main(argv=None):
     parser.add_argument("--java", default="java")
     parser.add_argument("--output", type=Path, help="Optional directory for fresh native logs")
     args = parser.parse_args(argv)
+    import remote_formal
+    try:
+        native = remote_formal.is_worker()
+    except (OSError, RuntimeError) as exc:
+        parser.error(str(exc))
+    if not native:
+        return remote_formal.run(args, ROOT, CASES)
     jar = args.jar.resolve()
     if hashlib.sha256(jar.read_bytes()).hexdigest() != TLC_SHA256:
         parser.error("TLC jar does not match the pinned 1.7.4 SHA-256")
     java = shutil.which(args.java)
     if java is None:
         parser.error("Java executable required")
+    version = subprocess.run([java, "-version"], capture_output=True, text=True)
+    if version.returncode != 0:
+        parser.error("Java version observation failed on the queue worker")
+    tool = {"java": str(Path(java).resolve()),
+            "java_sha256": hashlib.sha256(Path(java).resolve().read_bytes()).hexdigest(),
+            "java_version": version.stdout + version.stderr,
+            "jar": str(jar), "jar_sha256": TLC_SHA256}
+    print("TLC tool identity: " + json.dumps(tool, sort_keys=True))
     if args.output:
         args.output.mkdir(parents=True, exist_ok=True)
     for case, target in CASES:
@@ -57,7 +73,7 @@ def main(argv=None):
         if args.output:
             hashes = {name: hashlib.sha256((ROOT / "formal" / name).read_bytes()).hexdigest()
                       for name in ("ForecastLifecycle.tla", case + ".cfg")}
-            header = repr({"case": case, "inputs": hashes, "exit": result.returncode})
+            header = repr({"case": case, "inputs": hashes, "exit": result.returncode, "tool": tool})
             (args.output / (case + ".log")).write_text(header + "\n" + output)
         if not qualify(output, result.returncode, target):
             print(output)
