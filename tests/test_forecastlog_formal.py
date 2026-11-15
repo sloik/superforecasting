@@ -197,7 +197,18 @@ class QueueRoutingTests(unittest.TestCase):
         command = launch.call_args.args[0]
         self.assertEqual('/client/tla-queue',command[0])
         self.assertEqual('sloik/superforecasting',command[command.index('--project')+1])
-        self.assertEqual(['/usr/bin/python3','-B','tools/run_formal.py','--java','/oracle/jdk/bin/java','--jar','/oracle/only.jar'],command[command.index('--')+1:])
+        self.assertEqual(['/usr/bin/python3','-B','tools/run_formal.py','--java','/oracle/jdk/bin/java','--jar','/oracle/only.jar','--output',remote_formal.OUTPUT],command[command.index('--')+1:])
+
+    def test_no_output_option_still_retains_server_logs_without_local_fetch(self):
+        with mock.patch.dict(os.environ,{},clear=True),mock.patch.object(remote_formal.shutil,'which',return_value='/client/tla-queue'),mock.patch.object(remote_formal.subprocess,'run',return_value=subprocess.CompletedProcess([],0)) as launch,mock.patch.object(remote_formal,'merge_logs') as merge:
+            self.assertEqual(0,run_formal.main(['--jar','/oracle/only.jar']))
+        command=launch.call_args.args[0]
+        delimiter=command.index('--')
+        submission=command[:delimiter];producer=command[delimiter+1:]
+        self.assertEqual(remote_formal.OUTPUT,submission[submission.index('--output')+1])
+        self.assertEqual(remote_formal.OUTPUT,producer[producer.index('--output')+1])
+        self.assertNotIn('--fetch',command)
+        merge.assert_not_called()
 
     def test_backend_os_error_is_explicit_no_fallback(self):
         with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(remote_formal.shutil, 'which', return_value='/client/tla-queue'), mock.patch.object(remote_formal.subprocess, 'run', side_effect=OSError('backend unavailable')) as launch, contextlib.redirect_stderr(io.StringIO()) as err:

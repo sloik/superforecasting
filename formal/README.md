@@ -23,9 +23,13 @@ synthetic result or weaker counterexample parser is used.
 The native worker checks SHA-256
 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`
 before running TLC, one worker,512MiB heap, seed1 and a120-second limit per case.
-It prints the actual Java executable/hash/version and JAR identity. Use
-`--output <directory>` to fetch the six native logs with case, input hashes,
-exit code and observed tool identity. Only those owned log names are atomically
+It prints the actual Java executable/hash/version and JAR identity. **Every queued
+native campaign retains its raw native logs on Oracle** (all six for a successful
+complete campaign), with case, input hashes, exit code and observed tool identity,
+including CI and calls without
+`--output`. The queue manifest always declares that output and the producer always
+writes it. `--output <directory>` additionally fetches a local copy; omitting it
+creates no local output directory and does not discard the server-side evidence. Only those owned log names are atomically
 replaced; unrelated files in an existing output directory remain intact.
 Symlinked output directories/logs and path escapes are refused. A failed campaign
 may retain its available diagnostic logs, but missing logs cannot qualify a
