@@ -115,8 +115,9 @@ python3 forecastlog.py resolve --id 2 --outcome-bin 10-20
 ```
 
 The forecasting toolkit and Python tests require **Python 3.8+** (standard library — no pip installs).
-Optional native TLA+ verification additionally requires **Java 17+** and the pinned TLC jar;
-see [the formal verification guide](formal/README.md) for the download and run commands.
+TLA+ verification uses the shared **Oracle queue** and its pinned JDK/TLC toolchain;
+local callers need the `tla-queue` client, with no local Java/TLC fallback.
+See [the formal verification guide](formal/README.md) for submission and evidence retrieval.
 
 ## Where your forecasts are stored
 
